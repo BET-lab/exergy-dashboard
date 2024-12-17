@@ -6,7 +6,11 @@ import pandas as pd
 import altair as alt
 import streamlit as st
 from exergy_dashboard.system import SYSTEM_CASE
-
+from exergy_dashboard.evaluation import evaluate_parameters_cooling
+from exergy_dashboard.chart import (
+    plot_waterfall_cooling_ashp,
+    plot_waterfall_cooling_gshp,
+)
 
 LANG = 'EN'
 
@@ -33,8 +37,6 @@ def create_dynamic_multiview(dataframes, cols=2):
     ] * 50
     # 각 데이터프레임에 대한 기본 차트 생성 함수
     def create_base_chart(df, title, n):
-        print('color:', colors[n])
-
         # 데이터프레임의 숫자형 컬럼 찾기
         numeric_cols = df.select_dtypes(include=[np.number]).columns
         
@@ -139,9 +141,7 @@ def create_system(mode, system_name):
 
 
 def add_system(type_):
-    print('=' * 80)
     data = create_system(mode=sss.mode, system_name=type_)
-    print(data)
     sss.systems[data['name']] = data
 
 
@@ -176,7 +176,7 @@ with st.sidebar:
 ml, mr = 0.0001, 0.0001
 pad = 0.2
 col_border = False
-_, title_col, _ = st.columns([ml, 4 + pad + 5, mr], border=col_border)
+_, title_col, title_right_col = st.columns([ml, 4 + pad + 5, mr], border=col_border)
 _, title_col1, _, title_col2, _ = st.columns([ml, 4, pad, 5, mr], border=col_border)
 _, col1, _, col2, _ = st.columns([ml, 4, pad, 5, mr], border=col_border)
 
@@ -193,6 +193,11 @@ def remove_system(name):
             to_be_removed.append(k)
     for k in to_be_removed:
         sss.pop(k)
+
+    if 'selected_options' in sss:
+        sss.selected_options = [
+            option for option in sss.selected_options if option != name
+        ]
 
 
 with col1:
@@ -223,8 +228,8 @@ with col1:
                         system['parameters'][k]['value'] = st.number_input(
                             f"{v['explanation'][LANG]}, {v['latex']} [{v['unit']}]",
                             value=v['default'],
-                            step=0.1,
-                            format="%.1f",
+                            step=v['step'],
+                            format=f"%.{-math.floor(math.log10(v['step']))}f",
                             # label_visibility='collapsed',
                             key=f"{system['name']}:{k}",
                         )
@@ -239,12 +244,18 @@ with col1:
     # [system['name'] for system in sss.systems.values()]
 
 
+for key in sss.systems.keys():
+    evaluate_parameters_cooling(sss, key)
+
+
 with col2:
     st.subheader('Output Data :chart_with_upwards_trend:')
     options = st.multiselect(
         'Select systems to display',
         [system['name'] for system in sss.systems.values()],
-        # default=sss.selected_options if 'selected_options' in sss else None,
+        # sss.seledted_options if 'selected_options' in sss else [],
+        default=sss.selected_options if 'selected_options' in sss else None,
+        key='selected_options',
     )
 
     if len(options) != 0:
@@ -265,29 +276,76 @@ with col2:
 
         st.altair_chart(c, use_container_width=True)
 
-        st.subheader('2. Random property (subplot)')
+        st.subheader('2. Exergy Consumption Process')
+
+        figs = []
+        count = 0
+        for key in options:
+            sv = sss.systems[key]['variables']
+            if sss.systems[key]['type'] == 'ASHP':
+                print('new fig')
+                fig = plot_waterfall_cooling_ashp(
+                    Xin_A=sv['Xin_A'],
+                    Xc_int_A=sv['Xc_int_A'],
+                    Xc_r_A=sv['Xc_r_A'],
+                    Xc_ext_A=sv['Xc_ext_A'],
+                    X_a_ext_out_A=sv['X_a_ext_out_A'],
+                    Xout_A=sv['Xout_A'],
+                    n=count,
+                    name=key,
+                )
+                count += 1
+            if sss.systems[key]['type'] == 'GSHP':
+                fig = plot_waterfall_cooling_gshp(
+                    Xin_G=sv['Xin_G'],
+                    X_g=sv['X_g'],
+                    Xc_int_G=sv['Xc_int_G'],
+                    Xc_r_G=sv['Xc_r_G'],
+                    Xc_GHE=sv['Xc_GHE'],
+                    Xout_G=sv['Xout_G'],
+                    n=count,
+                    name=key,
+                )
+                count += 1                
+
+            figs.append(fig)
+
+        n = len(figs)
+        iter_ = iter(figs)
+        with st.spinner('Loading...'):
+            for i, fig in enumerate(range((n + 1) // 2)):
+                if i % 2 == 0:
+                    cols = st.columns(2)
+
+                for col in cols:
+                    try:
+                        col.write(next(iter_))
+                    except StopIteration:
+                        break
+
         # Draw random altair chart. but use options.
-        chart_data = pd.DataFrame(
-            data={
-                'a': np.random.randn(100),
-                'b': np.random.randn(100),
-                'c': np.random.randn(100),
-                'system': np.random.choice(options, 100),
-            },
-        )
+        # chart_data = pd.DataFrame(
+        #     data={
+        #         'a': np.random.randn(100),
+        #         'b': np.random.randn(100),
+        #         'c': np.random.randn(100),
+        #         'system': np.random.choice(options, 100),
+        #     },
+        # )
 
-        dataframes = [
-            chart_data[chart_data['system'] == option]
-            for option in options
-        ]
+        # dataframes = [
+        #     chart_data[chart_data['system'] == option]
+        #     for option in options
+        # ]
 
-        c = create_dynamic_multiview(dataframes, cols=3)
+        # c = create_dynamic_multiview(dataframes, cols=3)
 
-        # c = alt.Chart(chart_data).mark_circle().encode(
-        #     x='a', y='b', size='c', column='system', tooltip=['a', 'b', 'c']
-        # ).interactive()
+        # # c = alt.Chart(chart_data).mark_circle().encode(
+        # #     x='a', y='b', size='c', column='system', tooltip=['a', 'b', 'c']
+        # # ).interactive()
 
-        st.altair_chart(c)
+        # st.altair_chart(c)
 
 
-# sss
+
+# st.write(sss)

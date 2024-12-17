@@ -161,7 +161,7 @@ COOLING_GSHP = {
         'E_pmp_G': {
             'explanation': {'EN': 'Outdoor Unit Fan Power', 'KR': '실외기 측 팬 전력'},
             'latex': r'$E_{f,ext}$',
-            'default': 0.29,
+            'default': 0.48,
             'range': [0, 1],
             'unit': 'kW',
             'step': 0.01,
