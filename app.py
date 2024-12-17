@@ -259,20 +259,54 @@ with col2:
     )
 
     if len(options) != 0:
-        st.subheader('1. Random property (overlay)')
-        # Draw random altair chart. but use options.
+        st.subheader('1. Exergy Efficiency')
+        count = 0
+        efficiencies = []
+        for key in options:
+            sv = sss.systems[key]['variables']
+            if sss.systems[key]['type'] == 'ASHP':
+                eff = sv['Xout_A'] / sv['Xin_A'] * 100
+                efficiencies.append(eff)
+            if sss.systems[key]['type'] == 'GSHP':
+                eff = sv['Xout_G'] / sv['Xin_G'] * 100
+                efficiencies.append(eff)
+
+        # Draw bar chart of efficiencies. color is based on options.
         chart_data = pd.DataFrame(
             data={
-                'a': np.random.randn(100),
-                'b': np.random.randn(100),
-                'c': np.random.randn(100),
-                'system': np.random.choice(options, 100),
+                'efficiency': efficiencies,
+                'system': options,
             },
         )
 
-        c = alt.Chart(chart_data).mark_circle().encode(
-            x='a', y='b', size='c', color='system', tooltip=['a', 'b', 'c']
+        # st.write(options)
+
+        # No sort for Y.
+        c = alt.Chart(chart_data).mark_bar().encode(
+            y=alt.Y('system:N', title='System', sort=None),
+            x=alt.X('efficiency:Q', title='Efficiency [%]'),
+            color=alt.Color('system:N', sort=None),
+            tooltip=['system', 'efficiency'],
         ).interactive()
+
+        c.properties(
+            width='container',
+            height=len(options) * 300,
+        )
+
+        # # Draw random altair chart. but use options.
+        # chart_data = pd.DataFrame(
+        #     data={
+        #         'a': np.random.randn(100),
+        #         'b': np.random.randn(100),
+        #         'c': np.random.randn(100),
+        #         'system': np.random.choice(options, 100),
+        #     },
+        # )
+
+        # c = alt.Chart(chart_data).mark_circle().encode(
+        #     x='a', y='b', size='c', color='system', tooltip=['a', 'b', 'c']
+        # ).interactive()
 
         st.altair_chart(c, use_container_width=True)
 
