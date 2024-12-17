@@ -49,7 +49,7 @@ def create_dynamic_multiview(dataframes, cols=2):
             chart = alt.Chart(df).mark_circle(color=colors[n]).encode(
                 x=f'{numeric_cols[0]}:Q',
                 y=f'{numeric_cols[1]}:Q',
-                color=alt.value('steelblue')
+                # color=alt.value('steelblue')
             )
         else:
             # 숫자 컬럼이 없는 경우 막대 그래프
