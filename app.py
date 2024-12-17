@@ -159,14 +159,18 @@ with st.sidebar:
 
     )
     st.header('시스템 추가')
-    selected = st.selectbox(
-        'System type', SYSTEM_CASE[sss.mode.upper()].keys()
-    )
-    st.button(
-        'Add system',
-        use_container_width=True,
-        on_click=functools.partial(add_system, type_=selected),
-    )
+    if len(SYSTEM_CASE[sss.mode.upper()]) == 0:
+        st.write('No system available for the selected mode.')
+        st.stop()
+    else:
+        selected = st.selectbox(
+            'System type', SYSTEM_CASE[sss.mode.upper()].keys()
+        )
+        st.button(
+            'Add system',
+            use_container_width=True,
+            on_click=functools.partial(add_system, type_=selected),
+        )
 
 # st.get_option('layout')
 ml, mr = 0.0001, 0.0001

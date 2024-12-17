@@ -183,4 +183,9 @@ SYSTEM_CASE = {
         'ASHP': COOLING_ASGP,
         'GSHP': COOLING_GSHP,
     },
+    'HEATING': {
+    },
+    'HOT WATER': {
+      
+    },
 }
