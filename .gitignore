@@ -2,3 +2,4 @@ build
 dist
 pages-backup
 __pycache__
+notebooks
