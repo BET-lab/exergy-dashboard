@@ -1,9 +1,15 @@
 import math
+import copy
 import functools
 import numpy as np
 import pandas as pd
 import altair as alt
 import streamlit as st
+from exergy_dashboard.system import SYSTEM_CASE
+
+
+LANG = 'EN'
+
 
 def create_dynamic_multiview(dataframes, cols=2):
     """
@@ -62,7 +68,7 @@ def create_dynamic_multiview(dataframes, cols=2):
 
         return chart.properties(
             title=title, 
-            width=300, 
+            width=250, 
             height=200
         )
     
@@ -86,6 +92,7 @@ def create_dynamic_multiview(dataframes, cols=2):
     # 최종 수직 결합
     return alt.vconcat(*chart_rows)
 
+
 st.set_page_config(
     page_title='Exergy Analysis',
     page_icon=':fire:',
@@ -95,115 +102,71 @@ st.set_page_config(
 
 sss = st.session_state
 
+if 'mode' not in sss:
+    sss.mode = 'Cooling'
+
+def reset_systems():
+    sss.systems = {}
+    sss.system_count = {
+        k: 0 for k in SYSTEM_CASE[sss.mode.upper()].keys()
+    }
+
+
 if 'systems' not in sss:
     sss.systems = {}
 
 if 'system_count' not in sss:
-    sss.system_count = 0
-
-
-case_system = {
-    'cooling': {
-        'ASHP': {
-
-        },
-        'GSHP': {
-        },
-    },
-    'heating': {
-        'ASHP': {
-        },
-        'GSHP': {
-        },
-    },
-    'hotwater': {
-        'ASHP': {
-        },
-        'GSHP': {
-        },
-    },
-}
-
-def create_system(type_='ASHP'):
-    sss.system_count += 1
-
-    system = {
-        'name': f'System {sss.system_count}',
-        'type': type_,
-        'parameters': {
-            'COP': {   
-                'explaination': 'Coefficient of Performance',
-                'latex': r'$COP$',
-                'default': 4.0,
-                'unit': '-',
-            },
-            'Q_r_int': {
-                'explaination': 'Internal heat gain',
-                'latex': r'$Q_{r,int}$',
-                'default': 15.252,
-                'unit': 'kW',
-            },
-            'E_pmp': {
-                'explaination': 'Pump power',
-                'latex': r'$E_{pmp}$',
-                'default': 0.48,
-                'unit': 'kW',
-            },
-            'dT_a': {
-                'explaination': 'Temperature difference between inlet and outlet air',
-                'latex': r'$\Delta T_a$',
-                'default': 10.0,
-                'unit': '℃',
-            },
-            'QQQ': {
-                'explaination': 'Stock god',
-                'latex': r'$QQQ$',
-                'default': 10.0,
-                'unit': '℃',
-            },
-        },
+    sss.system_count = {
+        k: 0 for k in SYSTEM_CASE[sss.mode.upper()].keys()
     }
+
+
+def create_system(mode, system_name):
+    """
+    mode: 'cooling' or 'heating' or 'hot_water' ?
+    system_name: 'ASHP' or 'GSHP' or 'Boiler' or 'Solar' or 'Battery' ?
+    """
+    mode = mode.upper()
+    system_name = system_name.upper()
+
+    sss.system_count[system_name] += 1
+
+    system = copy.deepcopy(SYSTEM_CASE[mode][system_name])
+    system['name'] = f"{system_name} {sss.system_count[system_name]}"
+    system['type'] = system_name
 
     return system
 
-# data = create_system(type_='ASHP')
-# sss.systems[data['name']] = data
 
 def add_system(type_):
     print('=' * 80)
-    data = create_system(type_)
+    data = create_system(mode=sss.mode, system_name=type_)
     print(data)
     sss.systems[data['name']] = data
 
-st.header(':fire: Exergy Analyzer  ', help='This is a help message.')
 
 with st.sidebar:
-    st.title('시스템 설정')
-
+    st.title('Options')
     st.divider()
-    st.subheader('시스템 추가')
-    selected = st.selectbox('System type', ['ASHP', 'GSHP'])
+    st.header('시스템 모드')
+    st.segmented_control(
+        'Mode',
+        default='Cooling',
+        options=['Cooling', 'Heating', 'Hot Water'],
+        key='mode',
+        selection_mode='single',
+        label_visibility='collapsed',
+
+    )
+    st.header('시스템 추가')
+    selected = st.selectbox(
+        'System type', SYSTEM_CASE[sss.mode.upper()].keys()
+    )
     st.button(
         'Add system',
         use_container_width=True,
         on_click=functools.partial(add_system, type_=selected),
     )
-
-    # st.divider()
-    # st.subheader('시스템 제거')
-    # st.button('Remove system', use_container_width=True)
-
-    st.divider()
-    st.subheader('Exergy Analysis')
-    st.button('Calculate', use_container_width=True)
-
-    st.divider()
-    st.subheader('Plot')
-    st.button('Plot', use_container_width=True)
-
-    st.write('Gas constant')
-    st.number_input('R', value=8.314, step=0.1, format="%.1f")
-
 
 # st.get_option('layout')
 ml, mr = 0.0001, 0.0001
@@ -214,12 +177,22 @@ _, title_col1, _, title_col2, _ = st.columns([ml, 4, pad, 5, mr], border=col_bor
 _, col1, _, col2, _ = st.columns([ml, 4, pad, 5, mr], border=col_border)
 
 
+with title_col:
+    st.header('Exergy Analyzer  ', help='This is a help message.')
+
+
 def remove_system(name):
     sss.systems.pop(name)
+    to_be_removed = []
+    for k, v in sss.items():
+        if k.startswith(name):
+            to_be_removed.append(k)
+    for k in to_be_removed:
+        sss.pop(k)
 
 
 with col1:
-    st.header('System Inputs :dart:')
+    st.subheader('System Inputs :dart:')
     if len(sss.systems) == 0:
         st.write('No system added yet.')
         # st.stop()
@@ -228,33 +201,42 @@ with col1:
         st.write(' ')
         tabs = st.tabs(sss.systems.keys())
         for tab, system in zip(tabs, sss.systems.values()):
-            if system['type'] == 'ASHP':
-                tab.write('### Air Source Heat Pump :snowflake:')
-            elif system['type'] == 'GSHP':
-                tab.write('### Ground Source Heat Pump :earth_americas:')
+            with tab:
+                if system['type'] == 'ASHP':
+                    st.write('### Air Source Heat Pump :snowflake:')
+                elif system['type'] == 'GSHP':
+                    st.write('### Ground Source Heat Pump :earth_americas:')
 
-            for k, v in system['parameters'].items():
-                system['parameters'][k]['value'] = tab.number_input(
-                    f"{v['explaination']}, {v['latex']} [{v['unit']}]",
-                    value=v['default'],
-                    step=0.1,
-                    format="%.1f",
-                    # label_visibility='collapsed',
-                    key=f"{system['name']}_{k}",
+                n = len(system['parameters'])
+                col11, col12 = st.columns(2)
+                for i, (k, v) in enumerate(system['parameters'].items()):
+                    if i < (n + 1) // 2:
+                        col = col11
+                    else:
+                        col = col12
+
+                    with col:
+                        system['parameters'][k]['value'] = st.number_input(
+                            f"{v['explanation'][LANG]}, {v['latex']} [{v['unit']}]",
+                            value=v['default'],
+                            step=0.1,
+                            format="%.1f",
+                            # label_visibility='collapsed',
+                            key=f"{system['name']}:{k}",
+                        )
+
+                st.button(
+                    'Remove system',
+                    use_container_width=True,
+                    key=system['name'],
+                    on_click=functools.partial(remove_system, name=system['name']),
                 )
-
-            tab.button(
-                'Remove system',
-                use_container_width=True,
-                key=system['name'],
-                on_click=functools.partial(remove_system, name=system['name']),
-            )
 
     # [system['name'] for system in sss.systems.values()]
 
 
 with col2:
-    st.header('Output Data :chart_with_upwards_trend:')
+    st.subheader('Output Data :chart_with_upwards_trend:')
     options = st.multiselect(
         'Select systems to display',
         [system['name'] for system in sss.systems.values()],
@@ -302,3 +284,6 @@ with col2:
         # ).interactive()
 
         st.altair_chart(c)
+
+
+# sss
