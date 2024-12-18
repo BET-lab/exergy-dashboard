@@ -262,37 +262,65 @@ with col2:
         st.subheader('1. Exergy Efficiency')
         count = 0
         efficiencies = []
+        xins = []
+        xouts = []
         for key in options:
             sv = sss.systems[key]['variables']
             if sss.systems[key]['type'] == 'ASHP':
                 eff = sv['Xout_A'] / sv['Xin_A'] * 100
                 efficiencies.append(eff)
+                xins.append(sv['Xin_A'])
+                xouts.append(sv['Xout_A'])
             if sss.systems[key]['type'] == 'GSHP':
                 eff = sv['Xout_G'] / sv['Xin_G'] * 100
                 efficiencies.append(eff)
+                xins.append(sv['Xin_G'])
+                xouts.append(sv['Xout_G'])
 
         # Draw bar chart of efficiencies. color is based on options.
         chart_data = pd.DataFrame(
             data={
                 'efficiency': efficiencies,
+                'xins': xins,
+                'xouts': xouts,
                 'system': options,
             },
         )
 
-        # st.write(options)
+        # st.write(chart_data)
+        max_v = chart_data['efficiency'].max()
 
         # No sort for Y.
-        c = alt.Chart(chart_data).mark_bar().encode(
-            y=alt.Y('system:N', title='System', sort=None),
-            x=alt.X('efficiency:Q', title='Efficiency [%]'),
-            color=alt.Color('system:N', sort=None),
+        c = alt.Chart(chart_data).mark_bar(size=30).encode(
+            y=alt.Y('system:N', title='System', sort=None)
+               .axis(title=None, labelFontSize=18, labelColor='black'),
+            x=alt.X('efficiency:Q', title='Exergy Efficiency [%]')
+               .axis(
+                    labelFontSize=20,
+                    labelColor='black',
+                    titleFontSize=22,
+                    titleColor='black',
+                )
+                .scale(domain=[0, max_v + 3]),
+            color=alt.Color('system:N', sort=None, legend=None),
             tooltip=['system', 'efficiency'],
-        ).interactive()
-
-        c.properties(
+        ).properties(
             width='container',
-            height=len(options) * 300,
+            height=len(options) * 60 + 50,
         )
+
+        text = c.mark_text(
+            align='left',
+            baseline='middle',
+            dx=3,
+            fontSize=20,
+            fontWeight='normal',
+        ).encode(
+            text=alt.Text('efficiency:Q', format='.2f')
+        )
+
+        c = (c + text)
+            
 
         # # Draw random altair chart. but use options.
         # chart_data = pd.DataFrame(
