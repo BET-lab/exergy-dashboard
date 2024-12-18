@@ -125,7 +125,7 @@ def plot_waterfall_cooling_gshp(
 
     # ASHP plot
     labels_gshp = ['Input', r'$X_{c,int}$', r'$X_{c,ref}$', r'$X_{c,GHE}$', 'Output']
-    values_gshp = [Xin_G + X_g, -Xc_int_G, -Xc_r_G, -Xc_GHE, Xout_G]
+    values_gshp = [Xin_G, -Xc_int_G, -Xc_r_G, -Xc_GHE, Xout_G]
     x_ashp = np.arange(len(labels_gshp))
     cumulative_values_ashp = np.cumsum(values_gshp)
 
