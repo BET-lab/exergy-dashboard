@@ -135,7 +135,7 @@ def evaluate_parameters_cooling(sss, system_name):
         Xc_GHE = Xin_ext_G - Xout_ext_G # 엑서지 소비율
 
         ## Total
-        Xin_G = E_cmp_G + E_f_int + E_pmp_G # 총 엑서지 인풋 (컴프레서 + 실내팬 + 펌프 전력)
+        Xin_G = E_cmp_G + E_f_int + E_pmp_G + X_g # 총 엑서지 인풋 (컴프레서 + 실내팬 + 펌프 전력 + 땅에서 추출한 엑서지)
         Xout_G = X_a_int_out_G - X_a_int_in_G # 총 엑서지 아웃풋
         Xc_G = Xin_G - Xout_G # 총 엑서지 소비율
 
